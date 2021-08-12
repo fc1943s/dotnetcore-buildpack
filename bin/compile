@@ -17,7 +17,7 @@ BUILD_DIR=${1:-}
 CACHE_DIR=${2:-}
 ENV_DIR=${3:-}
 BP_DIR=$(cd $(dirname ${0:-}); cd ..; pwd)
-OUTPUT_DIR=${OUTPUT_DIR:-heroku_output}
+OUTPUT_DIR=${OUTPUT_DIR:-heroku_output_dotnet}
 
 mkdir -p $BUILD_DIR/.profile.d
 cp $BP_DIR/profile/* $BUILD_DIR/.profile.d/
@@ -46,7 +46,7 @@ if [ -f ${BUILD_DIR}/dotnet-tools.json ] || [ -f ${BUILD_DIR}/.config/dotnet-too
 fi
 
 if [ -z ${PROJECT_FILE:-} ]; then
-	PROJECT_FILE=$(x=$(dirname $(find ${BUILD_DIR} -maxdepth 5 -iname Startup.cs -o -iname Program.cs -o -iname Program.fs | head -1)); while [[ "$x" =~ $BUILD_DIR ]] ; do find "$x" -maxdepth 1 -name *.fsproj -o -name *.csproj; x=`dirname "$x"`; done)
+	invalid_PROJECT_FILE
 fi
 
 topic "Project File"
@@ -61,10 +61,14 @@ info $PROJECT_NAME
 
 if [ -n "$(cat $PROJECT_FILE | grep 'netcoreapp2.0')" ]; then
 	topic "WARNING"
-	info "For netcoreapp2.0 use https://github.com/jincod/dotnetcore-buildpack#v2.1.200" | indent
-	info "More info https://github.com/jincod/dotnetcore-buildpack/issues/44" | indent
+	info "For netcoreapp2.0 use https://github.com/fc1943s/dotnetcore-buildpack#v2.1.200" | indent
+	info "More info https://github.com/fc1943s/dotnetcore-buildpack/issues/44" | indent
 fi
 export NUGET_PACKAGES="${CACHE_DIR}/nuget/cache"
+
+if [ "${PAKET:-}" == "true" ]; then
+	dotnet paket restore
+fi
 
 info "publish ${PROJECT_FILE} for ${BUILD_CONFIGURATION} on ${OUTPUT_DIR}"
 dotnet publish $PROJECT_FILE --output ${BUILD_DIR}/${OUTPUT_DIR} --configuration ${BUILD_CONFIGURATION} --runtime linux-x64
@@ -73,8 +77,5 @@ if [ -f ${BUILD_DIR}/Procfile ]; then
 	topic "WARNING"
 	echo "Be careful with custom Procfile" | indent
 else
-	echo "Add web process to Procfile" | indent
-	cat << EOT >> ${BUILD_DIR}/Procfile
-web: cd \$HOME/heroku_output && ./${PROJECT_NAME}
-EOT
+	echo "Add web process to Procfile (skipped)" | indent
 fi
